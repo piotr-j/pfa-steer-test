@@ -1,20 +1,15 @@
 package io.piotrjastrzebski.tilemovementtest;
 
-import com.badlogic.gdx.ApplicationAdapter;
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.InputMultiplexer;
-import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
@@ -22,19 +17,30 @@ import com.kotcrab.vis.ui.VisUI;
 
 public class TileGame extends ApplicationAdapter implements InputProcessor {
 	private static final String TAG = TileGame.class.getSimpleName();
-	private final static int MAP_WIDTH = 8;
-	private final static int MAP_HEIGHT = 10;
+	private final static int MAP_WIDTH = 25;
+	private final static int MAP_HEIGHT = 19;
+	private final static int __ = 0;
+	private final static int WL = 1;
 	private static int[][] MAP = { // [y][x]
-		{1, 1, 1, 1, 1, 1, 1, 1,},
-		{1, 0, 1, 0, 0, 0, 0, 1,},
-		{1, 1, 0, 0, 0, 0, 0, 1,},
-		{1, 0, 0, 0, 0, 0, 0, 1,},
-		{1, 0, 0, 0, 0, 0, 0, 1,},
-		{1, 0, 0, 0, 0, 0, 0, 1,},
-		{1, 0, 0, 0, 0, 0, 0, 1,},
-		{1, 1, 0, 0, 0, 0, 0, 1,},
-		{1, 1, 1, 0, 0, 0, 0, 1,},
-		{1, 1, 1, 1, 1, 1, 1, 1,},
+		{WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+		{WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, },
 	};
 	static {
 		// flip y so it looks ok
@@ -92,7 +98,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	boolean forward = true;
 	@Override
 	public void render () {
-		Gdx.gl.glClearColor(1, 0, 0, 1);
+		Gdx.gl.glClearColor(WL, __, __, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		float dt = Gdx.graphics.getDeltaTime();
 
@@ -103,54 +109,19 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		for (int x = 0; x < MAP_WIDTH; x++) {
 			for (int y = 0; y < MAP_HEIGHT; y++) {
 				renderer.setColor(Color.GRAY);
-				renderer.rect(x, y, 1, 1);
+				renderer.rect(x, y, WL, 1);
 				int type = MAP[y][x];
 				switch (type) {
-				case 0: {
-					renderer.setColor(Color.GREEN);
+				case __: {
+					renderer.setColor(Color.WHITE);
 				} break;
-				case 1: {
-					renderer.setColor(Color.ORANGE);
+				case WL: {
+					renderer.setColor(Color.BLACK);
 				} break;
 				}
-				renderer.rect(x + .1f, y + .1f, .8f, .8f);
+				renderer.rect(x + .075f, y + .075f, .85f, .85f);
 			}
 		}
-
-//		renderer.setColor(Color.BLUE);
-//		renderer.circle(mp.x, mp.y, .5f, 16);
-//		renderer.setColor(Color.GREEN);
-//		renderer.circle(tp.x, tp.y, .35f, 16);
-//
-//		tmp1.set(tp.x, tp.y);
-//		tmp2.set(mp.x, mp.y);
-//		renderer.setColor(Color.BLACK);
-//		renderer.rectLine(tmp1, tmp2, .05f);
-
-//		progress+= dt;
-//		if (progress > 2) {
-//			progress -= 2;
-//		}
-//		float a = progress <= 1?progress:2-progress;
-//		tmp3.set(tmp1).lerp(tmp2, a);
-//		renderer.setColor(Color.BLACK);
-//		renderer.circle(tmp3.x, tmp3.y, .25f, 16);
-
-//		target.set(mp.x, mp.y);
-//		float dst2 = pos.dst2(target);
-//		tmp1.set(target).sub(pos).nor();
-//		final float minDst2 = 2;
-//		final float speed = 10;
-//		if (dst2 < minDst2) {
-//			float a = dst2/minDst2;
-//			tmp1.scl(speed * Interpolation.exp5Out.apply(a));
-//		} else {
-//			tmp1.scl(speed);
-//		}
-//		pos.mulAdd(tmp1, dt);
-//
-//		renderer.setColor(Color.WHITE);
-//		renderer.circle(pos.x, pos.y, .25f, 16);
 
 
 		renderer.end();
@@ -183,6 +154,39 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	Vector3 tp = new Vector3();
 	Vector3 mp = new Vector3();
 	@Override public boolean keyDown (int keycode) {
+		switch (keycode) {
+		case Input.Keys.T: {
+			int x = MathUtils.clamp((int)mp.x, 0, MAP_WIDTH);
+			int y = MathUtils.clamp((int)mp.y, 0, MAP_HEIGHT);
+			int type = MAP[y][x];
+			if (type == 0) {
+				MAP[y][x] = 1;
+			} else if (type == 1) {
+				MAP[y][x] = 0;
+			}
+		} break;
+		case Input.Keys.P: {
+			System.out.println("\tprivate static int[][] MAP = { // [y][x]");
+			for (int x = MAP_WIDTH -1; x >= 0; x--) {
+				System.out.print("\t\t{");
+				for (int y = 0; y < MAP_HEIGHT; y++) {
+					int type = MAP[y][x];
+					switch (type) {
+					case WL: {
+						System.out.print("WL, ");
+					}
+					break;
+					case __: {
+						System.out.print("__, ");
+					}
+					break;
+					}
+				}
+				System.out.println("},");
+			}
+			System.out.println("\t};");
+		} break;
+		}
 		return false;
 	}
 
