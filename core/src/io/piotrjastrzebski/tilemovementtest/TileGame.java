@@ -6,11 +6,13 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.kotcrab.vis.ui.VisUI;
@@ -85,6 +87,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 	}
 
+	Array<Dude> dudes = new Array<Dude>();
 	float progress;
 	Vector2 tmp1 = new Vector2();
 	Vector2 tmp2 = new Vector2();
@@ -123,6 +126,14 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			}
 		}
 
+		if (selected != null) {
+			renderer.setColor(Color.FOREST);
+			renderer.circle(selected.pos.x, selected.pos.y, .55f, 16);
+		}
+		renderer.setColor(Color.GREEN);
+		for (Dude dude : dudes) {
+			renderer.circle(dude.pos.x, dude.pos.y, .4f, 16);
+		}
 
 		renderer.end();
 
@@ -135,6 +146,11 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		VisUI.dispose();
 		renderer.dispose();
 		batch.dispose();
+	}
+
+	Dude selected;
+	private static class Dude {
+		Vector2 pos = new Vector2();
 	}
 
 	public void enableBlending () {
@@ -164,6 +180,13 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			} else if (type == 1) {
 				MAP[y][x] = 0;
 			}
+		} break;
+		case Input.Keys.D: {
+			Dude dude = new Dude();
+			int x = MathUtils.clamp((int)mp.x, 0, MAP_WIDTH);
+			int y = MathUtils.clamp((int)mp.y, 0, MAP_HEIGHT);
+			dude.pos.set(x + .5f, y+ .5f);
+			dudes.add(dude);
 		} break;
 		case Input.Keys.P: {
 			System.out.println("\tprivate static int[][] MAP = { // [y][x]");
@@ -198,8 +221,22 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		return false;
 	}
 
+	Circle circle = new Circle();
 	@Override public boolean touchDown (int screenX, int screenY, int pointer, int button) {
 		gameCamera.unproject(tp.set(screenX, screenY, 0));
+		if (button == Input.Buttons.LEFT) {
+			selected = null;
+			for (Dude dude : dudes) {
+				circle.set(dude.pos.x, dude.pos.y, .5f);
+				if (circle.contains(tp.x, tp.y)) {
+					selected = dude;
+					break;
+				}
+			}
+		} else if (button == Input.Buttons.RIGHT) {
+			// TODO move
+		}
+
 		return false;
 	}
 
