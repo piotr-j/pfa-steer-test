@@ -8,7 +8,10 @@ import com.badlogic.gdx.ai.pfa.indexed.IndexedAStarPathFinder;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedGraph;
 import com.badlogic.gdx.ai.steer.Steerable;
 import com.badlogic.gdx.ai.steer.SteerableAdapter;
+import com.badlogic.gdx.ai.steer.SteeringAcceleration;
 import com.badlogic.gdx.ai.steer.SteeringBehavior;
+import com.badlogic.gdx.ai.steer.behaviors.FollowPath;
+import com.badlogic.gdx.ai.steer.utils.paths.LinePath;
 import com.badlogic.gdx.ai.utils.Location;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
@@ -117,6 +120,8 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			renderer.circle(selected.pos.x, selected.pos.y, .55f, 16);
 		}
 		for (Dude dude : dudes) {
+			dude.update(dt);
+
 			renderer.setColor(Color.GREEN);
 			renderer.circle(dude.pos.x, dude.pos.y, .4f, 16);
 			renderer.setColor(Color.BLACK);
@@ -124,6 +129,16 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			Vector2 pos = dude.getPosition();
 			tmo.scl(.4f);
 			renderer.rectLine(pos.x, pos.y, pos.x + tmo.x, pos.y + tmo.y, .05f);
+			renderer.setColor(Color.GREEN);
+			Graph.Path path = dude.path;
+			if (path.getCount() >= 2) {
+				Graph.Node from = path.get(0);
+				for (int i = 1, size = path.getCount(); i < size; i++) {
+					Graph.Node to = path.get(i);
+					renderer.rectLine(from.x, from.y, to.x, to.y, .05f);
+					from = to;
+				}
+			}
 		}
 
 		renderer.setColor(Color.RED);
@@ -183,9 +198,9 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		Vector2 pos = new Vector2();
 		float orientation;
 		Vector2 vel = new Vector2();
-		float zeroSpeed = 0.001f;
-		float maxLinearSpeed = 1;
-		float maxLinearAccel = 2;
+		float zeroSpeed = 0.01f;
+		float maxLinearSpeed = 2f;
+		float maxLinearAccel = 20;
 		float angVel = 0;
 		float maxAngSpeed = 45 * MathUtils.degreesToRadians;
 		float maxAngAccel = 15 * MathUtils.degreesToRadians;
@@ -194,10 +209,35 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 		Graph.Path path;
 		SteeringBehavior<Vector2> steering;
+		SteeringAcceleration<Vector2> acceleration;
 
 		public Dude (float x, float y) {
 			pos.set(x, y);
 			orientation = MathUtils.random(-MathUtils.PI2, MathUtils.PI2);
+			path = new Graph.Path();
+			acceleration = new SteeringAcceleration<Vector2>(new Vector2(), 0);
+		}
+
+		public void update (float dt) {
+			if (steering != null) {
+				steering.calculateSteering(acceleration);
+				pos.mulAdd(vel, dt);
+				vel.mulAdd(acceleration.linear, dt).limit(maxLinearSpeed);
+
+				// Update orientation and angular velocity
+//				if (independentFacing) {
+//					setRotation(getRotation() + (angularVelocity * time) * MathUtils.radiansToDegrees);
+//					angularVelocity += steering.angular * time;
+//				} else {
+					// If we haven't got any velocity, then we can do nothing.
+//					if (!linearVelocity.isZero(getZeroLinearSpeedThreshold())) {
+//						float newOrientation = vectorToAngle(linearVelocity);
+//						angularVelocity = (newOrientation - getRotation() * MathUtils.degreesToRadians) * time; // this is superfluous if independentFacing is always true
+//						setRotation(newOrientation * MathUtils.radiansToDegrees);
+//					}
+//				}
+
+			}
 		}
 
 		@Override public Vector2 getLinearVelocity () {
@@ -425,7 +465,19 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			this.selected = selected;
 		} else if (button == Input.Buttons.RIGHT) {
 			if (selected != null) {
-				// TODO tell dude to move
+				selected.path.clear();
+				findPath(gx(selected.pos.x), gy(selected.pos.y), gx(tp.x), gy(tp.y), selected.path);
+				if (selected.path.getCount() >= 2) {
+					LinePath<Vector2> linePath = new LinePath<Vector2>(selected.path.toV2Path(), true);
+					FollowPath<Vector2, LinePath.LinePathParam> followPath = new FollowPath<Vector2, LinePath.LinePathParam>(
+						selected, linePath, .25f, .25f);
+					followPath
+						.setDecelerationRadius(.65f)
+						.setArrivalTolerance(.01f)
+						.setArriveEnabled(true)
+						.setTimeToTarget(.1f);
+					selected.steering = followPath;
+				}
 			} else {
 				pfDest.set(gx(tp.x), gy(tp.y));
 			}
@@ -648,6 +700,14 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 			@Override public Iterator<Node> iterator () {
 				return nodes.iterator();
+			}
+
+			Array<Vector2> toV2Path() {
+				Array<Vector2> array = new Array<Vector2>();
+				for (Node node : nodes) {
+					array.add(new Vector2(node.x, node.y));
+				}
+				return array;
 			}
 		}
 	}
