@@ -7,6 +7,8 @@ import com.badlogic.gdx.ai.pfa.Heuristic;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedAStarPathFinder;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedGraph;
 import com.badlogic.gdx.ai.steer.Steerable;
+import com.badlogic.gdx.ai.steer.SteerableAdapter;
+import com.badlogic.gdx.ai.steer.SteeringBehavior;
 import com.badlogic.gdx.ai.utils.Location;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
@@ -189,6 +191,9 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		float maxAngAccel = 15 * MathUtils.degreesToRadians;
 		float radius = .5f;
 		boolean tagged;
+
+		Graph.Path path;
+		SteeringBehavior<Vector2> steering;
 
 		public Dude (float x, float y) {
 			pos.set(x, y);
@@ -406,7 +411,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	@Override public boolean touchDown (int screenX, int screenY, int pointer, int button) {
 		gameCamera.unproject(tp.set(screenX, screenY, 0));
 		if (button == Input.Buttons.LEFT) {
-			selected = null;
+			Dude selected = null;
 			for (Dude dude : dudes) {
 				circle.set(dude.pos.x, dude.pos.y, .5f);
 				if (circle.contains(tp.x, tp.y)) {
@@ -414,9 +419,10 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 					break;
 				}
 			}
-			if (selected == null) {
+			if (selected == null && this.selected == null) {
 				pfStart.set(gx(tp.x), gy(tp.y));
 			}
+			this.selected = selected;
 		} else if (button == Input.Buttons.RIGHT) {
 			if (selected != null) {
 				// TODO tell dude to move
