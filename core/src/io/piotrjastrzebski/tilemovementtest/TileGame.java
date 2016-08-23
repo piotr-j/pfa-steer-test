@@ -4,18 +4,16 @@ import com.badlogic.gdx.*;
 import com.badlogic.gdx.ai.pfa.Connection;
 import com.badlogic.gdx.ai.pfa.GraphPath;
 import com.badlogic.gdx.ai.pfa.Heuristic;
-import com.badlogic.gdx.ai.pfa.PathFinderRequest;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedAStarPathFinder;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedGraph;
+import com.badlogic.gdx.ai.steer.Steerable;
+import com.badlogic.gdx.ai.utils.Location;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Circle;
-import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.*;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Array;
@@ -68,12 +66,12 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 		graph = new Graph();
 		pathFinder = new IndexedAStarPathFinder<Graph.Node>(graph);
-		findPath();
+		findPath((int)pfStart.x, (int)pfStart.y, (int)pfDest.x, (int)pfDest.y, path);
 	}
 
-	private void findPath () {
-		Graph.Node from = graph.get((int)pfStart.x, (int)pfStart.y);
-		Graph.Node to =graph.get((int)pfDest.x, (int)pfDest.y);
+	private void findPath (int sx, int sy, int dx, int dy, Graph.Path path) {
+		Graph.Node from = graph.get(sx, sy);
+		Graph.Node to = graph.get(dx, dy);
 		path.clear();
 		pathFinder.searchNodePath(from, to, graph.heuristic, path);
 	}
@@ -82,6 +80,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 	private Vector2 pfStart = new Vector2(5.5f, 5.5f);
 	private Vector2 pfDest = new Vector2(10.5f, 10.5f);
+	private Vector2 tmo = new Vector2();
 
 	boolean drawConnections = false;
 	@Override
@@ -115,9 +114,14 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			renderer.setColor(Color.FOREST);
 			renderer.circle(selected.pos.x, selected.pos.y, .55f, 16);
 		}
-		renderer.setColor(Color.GREEN);
 		for (Dude dude : dudes) {
+			renderer.setColor(Color.GREEN);
 			renderer.circle(dude.pos.x, dude.pos.y, .4f, 16);
+			renderer.setColor(Color.BLACK);
+			angleToVector(tmo, dude.getOrientation());
+			Vector2 pos = dude.getPosition();
+			tmo.scl(.4f);
+			renderer.rectLine(pos.x, pos.y, pos.x + tmo.x, pos.y + tmo.y, .05f);
 		}
 
 		renderer.setColor(Color.RED);
@@ -173,8 +177,148 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	}
 
 	Dude selected;
-	private static class Dude {
+	private static class Dude implements Steerable<Vector2> {
 		Vector2 pos = new Vector2();
+		float orientation;
+		Vector2 vel = new Vector2();
+		float zeroSpeed = 0.001f;
+		float maxLinearSpeed = 1;
+		float maxLinearAccel = 2;
+		float angVel = 0;
+		float maxAngSpeed = 45 * MathUtils.degreesToRadians;
+		float maxAngAccel = 15 * MathUtils.degreesToRadians;
+		float radius = .5f;
+		boolean tagged;
+
+		public Dude (float x, float y) {
+			pos.set(x, y);
+			orientation = MathUtils.random(-MathUtils.PI2, MathUtils.PI2);
+		}
+
+		@Override public Vector2 getLinearVelocity () {
+			return vel;
+		}
+
+		@Override public float getAngularVelocity () {
+			return angVel;
+		}
+
+		@Override public float getBoundingRadius () {
+			return radius;
+		}
+
+		@Override public boolean isTagged () {
+			return tagged;
+		}
+
+		@Override public void setTagged (boolean tagged) {
+			this.tagged = tagged;
+		}
+
+		@Override public float getZeroLinearSpeedThreshold () {
+			return zeroSpeed;
+		}
+
+		@Override public void setZeroLinearSpeedThreshold (float value) {
+			zeroSpeed = value;
+		}
+
+		@Override public float getMaxLinearSpeed () {
+			return maxLinearSpeed;
+		}
+
+		@Override public void setMaxLinearSpeed (float maxLinearSpeed) {
+			this.maxLinearSpeed = maxLinearSpeed;
+		}
+
+		@Override public float getMaxLinearAcceleration () {
+			return maxLinearAccel;
+		}
+
+		@Override public void setMaxLinearAcceleration (float maxLinearAcceleration) {
+			maxLinearAccel = maxLinearAcceleration;
+		}
+
+		@Override public float getMaxAngularSpeed () {
+			return maxAngSpeed;
+		}
+
+		@Override public void setMaxAngularSpeed (float maxAngularSpeed) {
+			maxAngSpeed = maxAngularSpeed;
+		}
+
+		@Override public float getMaxAngularAcceleration () {
+			return maxAngAccel;
+		}
+
+		@Override public void setMaxAngularAcceleration (float maxAngularAcceleration) {
+			maxAngAccel = maxAngularAcceleration;
+		}
+
+		@Override public Vector2 getPosition () {
+			return pos;
+		}
+
+		@Override public float getOrientation () {
+			return orientation;
+		}
+
+		@Override public void setOrientation (float orientation) {
+			this.orientation = orientation;
+		}
+
+		@Override public float vectorToAngle (Vector2 vector) {
+			return TileGame.vectorToAngle(vector);
+		}
+
+		@Override public Vector2 angleToVector (Vector2 outVector, float angle) {
+			return TileGame.angleToVector(outVector, angle);
+		}
+
+		@Override public Location<Vector2> newLocation () {
+			return new DudeLocation();
+		}
+	}
+
+	public static class DudeLocation implements Location<Vector2> {
+		Vector2 pos = new Vector2();
+		float orientation;
+		@Override public Vector2 getPosition () {
+			return pos;
+		}
+
+		@Override public float getOrientation () {
+			return orientation;
+		}
+
+		@Override public void setOrientation (float orientation) {
+			this.orientation = orientation;
+		}
+
+		@Override public float vectorToAngle (Vector2 vector) {
+			return TileGame.vectorToAngle(vector);
+		}
+
+		@Override public Vector2 angleToVector (Vector2 outVector, float angle) {
+			return TileGame.angleToVector(outVector, angle);
+		}
+
+		@Override public Location<Vector2> newLocation () {
+			return new DudeLocation();
+		}
+	}
+
+	public static float vectorToAngle (Vector2 vector) {
+		// this is different than stuff in vector2, why is that? probably we want different axis
+		return (float)Math.atan2(-vector.x, vector.y);
+	}
+
+	public static Vector2 angleToVector (Vector2 outVector, float angleRad) {
+		outVector.x = -(float)Math.sin(angleRad);
+		outVector.y = (float)Math.cos(angleRad);
+		// same as
+//		return outVector.set(0, 1).rotate(angleRad);
+		return outVector;
 	}
 
 	public void enableBlending () {
@@ -193,6 +337,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 	Vector3 tp = new Vector3();
 	Vector3 mp = new Vector3();
+	Rectangle tmpRect = new Rectangle(0, 0, 1, 1);
 	@Override public boolean keyDown (int keycode) {
 		switch (keycode) {
 		case Input.Keys.T: {
@@ -204,14 +349,24 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			} else if (type == 1) {
 				graph.setTypeOf(x, y, 0);
 			}
-			findPath();
+			findPath((int)pfStart.x, (int)pfStart.y, (int)pfDest.x, (int)pfDest.y, path);
 		} break;
 		case Input.Keys.D: {
-			Dude dude = new Dude();
+			Dude at = null;
+			for (Dude dude : dudes) {
+				tmpRect.setPosition((int)dude.pos.x, (int)dude.pos.y);
+				if (tmpRect.contains(mp.x, mp.y)) {
+					at = dude;
+					break;
+				}
+			}
+
 			int x = MathUtils.clamp((int)mp.x, 0, Graph.MAP_WIDTH);
 			int y = MathUtils.clamp((int)mp.y, 0, Graph.MAP_HEIGHT);
-			dude.pos.set(x + .5f, y+ .5f);
-			dudes.add(dude);
+			if (at == null && graph.typeOf(x, y) == Graph.__) {
+				Dude dude = new Dude(x + .5f, y + .5f);
+				dudes.add(dude);
+			}
 		} break;
 		case Input.Keys.P: {
 			graph.print();
@@ -244,10 +399,13 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 				pfStart.set((int)tp.x + .5f, (int)tp.y + .5f);
 			}
 		} else if (button == Input.Buttons.RIGHT) {
-			// TODO move?
-			pfDest.set((int)tp.x + .5f, (int)tp.y + .5f);
+			if (selected != null) {
+				// TODO tell dude to move
+			} else {
+				pfDest.set((int)tp.x + .5f, (int)tp.y + .5f);
+			}
 		}
-		findPath();
+		findPath((int)pfStart.x, (int)pfStart.y, (int)pfDest.x, (int)pfDest.y, path);
 
 		return false;
 	}
