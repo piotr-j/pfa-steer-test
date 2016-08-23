@@ -1,16 +1,18 @@
 package io.piotrjastrzebski.tilemovementtest;
 
 import com.badlogic.gdx.*;
+import com.badlogic.gdx.ai.GdxAI;
 import com.badlogic.gdx.ai.pfa.Connection;
 import com.badlogic.gdx.ai.pfa.GraphPath;
 import com.badlogic.gdx.ai.pfa.Heuristic;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedAStarPathFinder;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedGraph;
+import com.badlogic.gdx.ai.steer.Proximity;
 import com.badlogic.gdx.ai.steer.Steerable;
-import com.badlogic.gdx.ai.steer.SteerableAdapter;
 import com.badlogic.gdx.ai.steer.SteeringAcceleration;
 import com.badlogic.gdx.ai.steer.SteeringBehavior;
-import com.badlogic.gdx.ai.steer.behaviors.FollowPath;
+import com.badlogic.gdx.ai.steer.behaviors.*;
+import com.badlogic.gdx.ai.steer.proximities.RadiusProximity;
 import com.badlogic.gdx.ai.steer.utils.paths.LinePath;
 import com.badlogic.gdx.ai.utils.Location;
 import com.badlogic.gdx.graphics.Color;
@@ -22,6 +24,9 @@ import com.badlogic.gdx.math.*;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.reflect.ClassReflection;
+import com.badlogic.gdx.utils.reflect.Field;
+import com.badlogic.gdx.utils.reflect.ReflectionException;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.kotcrab.vis.ui.VisUI;
@@ -93,7 +98,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		Gdx.gl.glClearColor(1, 1, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		float dt = Gdx.graphics.getDeltaTime();
-
+		GdxAI.getTimepiece().update(dt);
 		renderer.setProjectionMatrix(gameCamera.combined);
 		batch.setProjectionMatrix(gameCamera.combined);
 
@@ -117,17 +122,17 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 		if (selected != null) {
 			renderer.setColor(Color.FOREST);
-			renderer.circle(selected.pos.x, selected.pos.y, .55f, 16);
+			renderer.circle(selected.pos.x, selected.pos.y, .35f, 16);
 		}
 		for (Dude dude : dudes) {
 			dude.update(dt);
 
 			renderer.setColor(Color.GREEN);
-			renderer.circle(dude.pos.x, dude.pos.y, .4f, 16);
+			renderer.circle(dude.pos.x, dude.pos.y, .25f, 16);
 			renderer.setColor(Color.BLACK);
 			angleToVector(tmo, dude.getOrientation());
 			Vector2 pos = dude.getPosition();
-			tmo.scl(.4f);
+			tmo.scl(.25f);
 			renderer.rectLine(pos.x, pos.y, pos.x + tmo.x, pos.y + tmo.y, .05f);
 			renderer.setColor(Color.GREEN);
 			Graph.Path path = dude.path;
@@ -180,12 +185,73 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 				from = to;
 			}
 		}
+
+		for (Dude dude : dudes) {
+			if (dude.steering != null) {
+				drawSteering(renderer, dude.steering);
+			}
+		}
+
 		renderer.end();
 
 		stage.act(dt);
 		stage.draw();
 	}
-	
+
+	private void drawSteering (ShapeRenderer renderer, SteeringBehavior steering) {
+		Steerable owner = steering.getOwner();
+		Vector2 op = (Vector2)owner.getPosition();
+		if (steering instanceof CompositeSteering) {
+			CompositeSteering cs = (CompositeSteering)steering;
+			Array<SteeringBehavior> all = cs.getAll();
+			for (SteeringBehavior sb : all) {
+				drawSteering(renderer, sb);
+			}
+		} else if (steering instanceof CollisionAvoidance) {
+			CollisionAvoidance ca = (CollisionAvoidance)steering;
+			// ffs private things :/
+			try {
+				Field field = ClassReflection.getDeclaredField(CollisionAvoidance.class, "firstNeighbor");
+				field.setAccessible(true);
+				Steerable<Vector2> firstNeighbor = (Steerable<Vector2>)field.get(ca);
+				field = ClassReflection.getDeclaredField(CollisionAvoidance.class, "firstMinSeparation");
+				field.setAccessible(true);
+				float firstMinSeparation = (Float)field.get(ca);
+				field = ClassReflection.getDeclaredField(CollisionAvoidance.class, "firstDistance");
+				field.setAccessible(true);
+				float firstDistance = (Float)field.get(ca);
+				field = ClassReflection.getDeclaredField(CollisionAvoidance.class, "firstRelativePosition");
+				field.setAccessible(true);
+				Vector2 firstRelativePosition = (Vector2)field.get(ca);
+				field = ClassReflection.getDeclaredField(CollisionAvoidance.class, "firstRelativeVelocity");
+				field.setAccessible(true);
+				Vector2 firstRelativeVelocity = (Vector2)field.get(ca);
+				renderer.setColor(Color.RED);
+				if (firstNeighbor != null) {
+					Vector2 fp = firstNeighbor.getPosition();
+					renderer.circle(fp.x, fp.y, .3f, 16);
+					renderer.circle(fp.x, fp.y, .35f, 16);
+					renderer.circle(fp.x, fp.y, .36f, 16);
+				}
+
+			} catch (ReflectionException e) {
+				e.printStackTrace();
+			}
+			RadiusProximity proximity = (RadiusProximity)ca.getProximity();
+			float radius = proximity.getRadius();
+			renderer.setColor(Color.ORANGE);
+
+			renderer.circle(op.x, op.y, radius, 32);
+		} else if (steering instanceof FollowPath) {
+			FollowPath fp = (FollowPath)steering;
+			Vector2 itp = (Vector2)fp.getInternalTargetPosition();
+			renderer.setColor(Color.RED);
+			renderer.circle(itp.x, itp.y, .2f, 16);
+		} else if (steering instanceof Arrive) {
+
+		}
+	}
+
 	@Override
 	public void dispose () {
 		VisUI.dispose();
@@ -204,7 +270,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		float angVel = 0;
 		float maxAngSpeed = 45 * MathUtils.degreesToRadians;
 		float maxAngAccel = 15 * MathUtils.degreesToRadians;
-		float radius = .5f;
+		float radius = .3f;
 		boolean tagged;
 
 		Graph.Path path;
@@ -328,6 +394,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	public static class DudeLocation implements Location<Vector2> {
 		Vector2 pos = new Vector2();
 		float orientation;
+
 		@Override public Vector2 getPosition () {
 			return pos;
 		}
@@ -384,11 +451,11 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	}
 
 	static int gx(float value) {
-		return MathUtils.clamp(MathUtils.round(value), 0, Graph.MAP_WIDTH);
+		return MathUtils.clamp(MathUtils.round(value), 0, Graph.MAP_WIDTH - 1);
 	}
 
 	static int gy(float value) {
-		return MathUtils.clamp(MathUtils.round(value), 0, Graph.MAP_HEIGHT);
+		return MathUtils.clamp(MathUtils.round(value), 0, Graph.MAP_HEIGHT - 1);
 	}
 
 	static float tx(float value) {
@@ -429,6 +496,22 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			int y = gy(mp.y);
 			if (at == null && graph.typeOf(x, y) == Graph.__) {
 				Dude dude = new Dude(x, y);
+				DudeLocation location = new DudeLocation();
+				location.getPosition().set(dude.getPosition());
+				location.getPosition().add(0, 1);
+				Arrive<Vector2> arrive = new Arrive<Vector2>(dude, location);
+				arrive.setTimeToTarget(.1f);
+				arrive.setArrivalTolerance(.001f);
+				arrive.setDecelerationRadius(.5f);
+				CollisionAvoidance<Vector2> avoidance = new CollisionAvoidance<Vector2>(dude,
+					new RadiusProximity<Vector2>(dude, dudes, .75f));
+//				MyPrioritySteering<Vector2> steering = new MyPrioritySteering<Vector2>(dude, .001f);
+//				steering.add(avoidance);
+//				steering.add(arrive);
+				MyBlendedSteering<Vector2> steering = new MyBlendedSteering<Vector2>(dude);
+				steering.add(avoidance, 5);
+				steering.add(arrive, 1);
+				dude.steering = steering;
 				dudes.add(dude);
 			}
 		} break;
@@ -476,7 +559,13 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 						.setArrivalTolerance(.01f)
 						.setArriveEnabled(true)
 						.setTimeToTarget(.1f);
-					selected.steering = followPath;
+					CollisionAvoidance<Vector2> avoidance = new CollisionAvoidance<Vector2>(selected,
+						new RadiusProximity<Vector2>(selected, dudes, .8f));
+//					MyPrioritySteering<Vector2> steering = new MyPrioritySteering<Vector2>(selected, .0001f);
+					MyBlendedSteering<Vector2> steering = new MyBlendedSteering<Vector2>(selected);
+					steering.add(avoidance, 4);
+					steering.add(followPath, 1);
+					selected.steering = steering;
 				}
 			} else {
 				pfDest.set(gx(tp.x), gy(tp.y));
@@ -709,6 +798,41 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 				}
 				return array;
 			}
+		}
+	}
+
+	public interface CompositeSteering<T extends Vector<T>> {
+		Array<SteeringBehavior<T>> getAll();
+	}
+
+	public static class MyBlendedSteering<T extends Vector<T>> extends BlendedSteering<T> implements CompositeSteering<T> {
+		/**
+		 * Creates a {@code BlendedSteering} for the specified {@code owner}, {@code maxLinearAcceleration} and
+		 * {@code maxAngularAcceleration}.
+		 *
+		 * @param owner the owner of this behavior.
+		 */
+		public MyBlendedSteering (Steerable<T> owner) {
+			super(owner);
+		}
+
+		private Array<SteeringBehavior<T>> all = new Array<SteeringBehavior<T>>();
+		public Array<SteeringBehavior<T>> getAll() {
+			all.clear();
+			for (BehaviorAndWeight<T> bw : list) {
+				all.add(bw.getBehavior());
+			}
+			return all;
+		}
+	}
+
+	public static class MyPrioritySteering<T extends Vector<T>>  extends PrioritySteering<T> implements CompositeSteering<T> {
+		public MyPrioritySteering (Steerable<T> owner) {
+			super(owner);
+		}
+
+		public Array<SteeringBehavior<T>> getAll () {
+			return behaviors;
 		}
 	}
 }
