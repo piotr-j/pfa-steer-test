@@ -66,7 +66,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 		graph = new Graph();
 		pathFinder = new IndexedAStarPathFinder<Graph.Node>(graph);
-		findPath((int)pfStart.x, (int)pfStart.y, (int)pfDest.x, (int)pfDest.y, path);
+		findPath(gx(pfStart.x), gy(pfStart.y), gx(pfDest.x), gy(pfDest.y), path);
 	}
 
 	private void findPath (int sx, int sy, int dx, int dy, Graph.Path path) {
@@ -78,8 +78,8 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 
 	Array<Dude> dudes = new Array<Dude>();
 
-	private Vector2 pfStart = new Vector2(5.5f, 5.5f);
-	private Vector2 pfDest = new Vector2(10.5f, 10.5f);
+	private Vector2 pfStart = new Vector2(5f, 5f);
+	private Vector2 pfDest = new Vector2(10f, 10f);
 	private Vector2 tmo = new Vector2();
 
 	boolean drawConnections = false;
@@ -96,7 +96,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		for (int x = 0; x < Graph.MAP_WIDTH; x++) {
 			for (int y = 0; y < Graph.MAP_HEIGHT; y++) {
 				renderer.setColor(.5f, .55f, .5f, 1);
-				renderer.rect(x, y, Graph.WL, 1);
+				renderer.rect(x - .5f, y - .5f, Graph.WL, 1);
 				int type = graph.typeOf(x, y);
 				switch (type) {
 				case Graph.__: {
@@ -106,7 +106,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 					renderer.setColor(Color.BLACK);
 				} break;
 				}
-				renderer.rect(x + .025f, y + .025f, .95f, .95f);
+				renderer.rect(x + .025f - .5f, y + .025f - .5f, .95f, .95f);
 			}
 		}
 
@@ -145,7 +145,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 					Array<Connection<Graph.Node>> connections = graph.getConnections(from);
 					for (Connection<Graph.Node> connection : connections) {
 						Graph.Node to = connection.getToNode();
-						renderer.line(from.x + .5f, from.y + .5f, to.x + .5f, to.y + .5f);
+						renderer.line(from.x, from.y, to.x, to.y);
 					}
 				}
 			}
@@ -158,7 +158,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			for (int i = 1, size = path.getCount(); i < size; i++) {
 				Graph.Node to = path.get(i);
 				renderer.setColor(1 - a, 0, a, 1);
-				renderer.line(from.x + .5f, from.y + .5f, to.x + .5f, to.y + .5f);
+				renderer.line(from.x, from.y, to.x, to.y);
 				a += step;
 				from = to;
 			}
@@ -333,6 +333,25 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	@Override public void resize (int width, int height) {
 		gameViewport.update(width, height, true);
 		guiViewport.update(width, height, true);
+
+		gameViewport.getCamera().translate(-.5f, -.5f, 0);
+		gameViewport.getCamera().update();
+	}
+
+	static int gx(float value) {
+		return MathUtils.clamp(MathUtils.round(value), 0, Graph.MAP_WIDTH);
+	}
+
+	static int gy(float value) {
+		return MathUtils.clamp(MathUtils.round(value), 0, Graph.MAP_HEIGHT);
+	}
+
+	static float tx(float value) {
+		return gx(value) - .5f;
+	}
+
+	static float ty(float value) {
+		return gy(value) - .5f;
 	}
 
 	Vector3 tp = new Vector3();
@@ -341,30 +360,30 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 	@Override public boolean keyDown (int keycode) {
 		switch (keycode) {
 		case Input.Keys.T: {
-			int x = MathUtils.clamp((int)mp.x, 0, Graph.MAP_WIDTH);
-			int y = MathUtils.clamp((int)mp.y, 0, Graph.MAP_HEIGHT);
+			int x = gx(mp.x);
+			int y = gy(mp.y);
 			int type = graph.typeOf(x, y);
 			if (type == 0) {
 				graph.setTypeOf(x, y, 1);
 			} else if (type == 1) {
 				graph.setTypeOf(x, y, 0);
 			}
-			findPath((int)pfStart.x, (int)pfStart.y, (int)pfDest.x, (int)pfDest.y, path);
+			findPath(gx(pfStart.x), gy(pfStart.y), gx(pfDest.x), gy(pfDest.y), path);
 		} break;
 		case Input.Keys.D: {
 			Dude at = null;
 			for (Dude dude : dudes) {
-				tmpRect.setPosition((int)dude.pos.x, (int)dude.pos.y);
+				tmpRect.setPosition(tx(dude.pos.x), ty(dude.pos.y));
 				if (tmpRect.contains(mp.x, mp.y)) {
 					at = dude;
 					break;
 				}
 			}
 
-			int x = MathUtils.clamp((int)mp.x, 0, Graph.MAP_WIDTH);
-			int y = MathUtils.clamp((int)mp.y, 0, Graph.MAP_HEIGHT);
+			int x = gx(mp.x);
+			int y = gy(mp.y);
 			if (at == null && graph.typeOf(x, y) == Graph.__) {
-				Dude dude = new Dude(x + .5f, y + .5f);
+				Dude dude = new Dude(x, y);
 				dudes.add(dude);
 			}
 		} break;
@@ -396,16 +415,16 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 				}
 			}
 			if (selected == null) {
-				pfStart.set((int)tp.x + .5f, (int)tp.y + .5f);
+				pfStart.set(gx(tp.x), gy(tp.y));
 			}
 		} else if (button == Input.Buttons.RIGHT) {
 			if (selected != null) {
 				// TODO tell dude to move
 			} else {
-				pfDest.set((int)tp.x + .5f, (int)tp.y + .5f);
+				pfDest.set(gx(tp.x), gy(tp.y));
 			}
 		}
-		findPath((int)pfStart.x, (int)pfStart.y, (int)pfDest.x, (int)pfDest.y, path);
+		findPath(gx(pfStart.x), gy(pfStart.y), gx(pfDest.x), gy(pfDest.y), path);
 
 		return false;
 	}
