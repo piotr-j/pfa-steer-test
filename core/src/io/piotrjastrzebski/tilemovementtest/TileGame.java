@@ -7,7 +7,6 @@ import com.badlogic.gdx.ai.pfa.GraphPath;
 import com.badlogic.gdx.ai.pfa.Heuristic;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedAStarPathFinder;
 import com.badlogic.gdx.ai.pfa.indexed.IndexedGraph;
-import com.badlogic.gdx.ai.steer.Proximity;
 import com.badlogic.gdx.ai.steer.Steerable;
 import com.badlogic.gdx.ai.steer.SteeringAcceleration;
 import com.badlogic.gdx.ai.steer.SteeringBehavior;
@@ -114,6 +113,9 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 				} break;
 				case Graph.WL: {
 					renderer.setColor(Color.BLACK);
+				} break;
+				case Graph.DR: {
+					renderer.setColor(Color.GRAY);
 				} break;
 				}
 				renderer.rect(x + .025f - .5f, y + .025f - .5f, .95f, .95f);
@@ -511,6 +513,11 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		case Input.Keys.P: {
 			graph.print();
 		} break;
+		case Input.Keys.W: {
+			if (selected != null) {
+				path(selected, mp.x, mp.y);
+			}
+		} break;
 		}
 		return false;
 	}
@@ -541,28 +548,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			this.selected = selected;
 		} else if (button == Input.Buttons.RIGHT) {
 			if (selected != null) {
-				selected.path.clear();
-				findPath(gx(selected.pos.x), gy(selected.pos.y), gx(tp.x), gy(tp.y), selected.path);
-				if (selected.path.getCount() >= 2) {
-					LinePath<Vector2> linePath = new LinePath<Vector2>(selected.path.toV2Path(), true);
-					FollowPath<Vector2, LinePath.LinePathParam> followPath = new FollowPath<Vector2, LinePath.LinePathParam>(
-						selected, linePath, .25f, .25f);
-					followPath
-						.setDecelerationRadius(.65f)
-						.setArrivalTolerance(.01f)
-						.setArriveEnabled(true)
-						.setTimeToTarget(.1f);
-					CollisionAvoidance<Vector2> avoidance = new CollisionAvoidance<Vector2>(selected,
-						new RadiusProximity<Vector2>(selected, dudes, .8f));
-//					MyPrioritySteering<Vector2> steering = new MyPrioritySteering<Vector2>(selected, .0001f);
-					LookWhereYouAreGoing<Vector2> lookWhereYouAreGoing = new LookWhereYouAreGoing<Vector2>(selected);
-					lookWhereYouAreGoing.setAlignTolerance(0.1f);
-					MyBlendedSteering<Vector2> steering = new MyBlendedSteering<Vector2>(selected);
-					steering.add(avoidance, 4);
-					steering.add(followPath, 1);
-					steering.add(lookWhereYouAreGoing, 1);
-					selected.steering = steering;
-				}
+				path(selected, tp.x, tp.y);
 			} else {
 				pfDest.set(gx(tp.x), gy(tp.y));
 			}
@@ -570,6 +556,32 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		findPath(gx(pfStart.x), gy(pfStart.y), gx(pfDest.x), gy(pfDest.y), path);
 
 		return false;
+	}
+
+	private void path (Dude dude, float x, float y) {
+		dude.path.clear();
+		findPath(gx(dude.pos.x), gy(dude.pos.y), gx(x), gy(y), dude.path);
+		if (dude.path.getCount() < 2) {
+			return;
+		}
+		LinePath<Vector2> linePath = new LinePath<Vector2>(dude.path.toV2Path(), true);
+		FollowPath<Vector2, LinePath.LinePathParam> followPath = new FollowPath<Vector2, LinePath.LinePathParam>(
+			dude, linePath, .25f, .25f);
+		followPath
+			.setDecelerationRadius(.65f)
+			.setArrivalTolerance(.01f)
+			.setArriveEnabled(true)
+			.setTimeToTarget(.1f);
+		CollisionAvoidance<Vector2> avoidance = new CollisionAvoidance<Vector2>(dude,
+			new RadiusProximity<Vector2>(dude, dudes, .8f));
+//					MyPrioritySteering<Vector2> steering = new MyPrioritySteering<Vector2>(selected, .0001f);
+		LookWhereYouAreGoing<Vector2> lookWhereYouAreGoing = new LookWhereYouAreGoing<Vector2>(dude);
+		lookWhereYouAreGoing.setAlignTolerance(0.1f);
+		MyBlendedSteering<Vector2> steering = new MyBlendedSteering<Vector2>(dude);
+		steering.add(avoidance, 4);
+		steering.add(followPath, 1);
+		steering.add(lookWhereYouAreGoing, 1);
+		dude.steering = steering;
 	}
 
 	@Override public boolean touchUp (int screenX, int screenY, int pointer, int button) {
@@ -596,6 +608,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		public final static int MAP_HEIGHT = 19;
 		public final static int __ = 0;
 		public final static int WL = 1;
+		public final static int DR = 2;
 		private static int[][] MAP = { // [y][x]
 			{WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, },
 			{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
@@ -609,10 +622,10 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			{WL, __, __, WL, __, __, WL, __, __, __, __, __, __, __, __, __, WL, WL, WL, __, __, __, __, __, WL, },
 			{WL, WL, WL, WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
 			{WL, __, __, WL, __, __, __, __, __, __, __, __, __, __, __, __, WL, WL, __, __, __, __, __, __, WL, },
+			{WL, __, __, __, __, __, __, __, __, WL, DR, WL, WL, __, __, WL, __, __, __, __, __, __, __, __, WL, },
+			{WL, __, __, __, __, __, __, __, __, WL, __, __, WL, __, WL, __, WL, __, __, __, __, __, __, __, WL, },
 			{WL, __, __, __, __, __, __, __, __, WL, __, __, WL, __, __, WL, __, __, __, __, __, __, __, __, WL, },
-			{WL, __, __, __, __, __, __, __, __, WL, WL, WL, WL, __, WL, __, WL, __, __, __, __, __, __, __, WL, },
-			{WL, __, __, __, __, __, __, __, __, WL, __, __, WL, __, __, WL, __, __, __, __, __, __, __, __, WL, },
-			{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
+			{WL, __, __, __, __, __, __, __, __, WL, WL, DR, WL, __, __, __, __, __, __, __, __, __, __, __, WL, },
 			{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
 			{WL, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, WL, },
 			{WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, WL, },
