@@ -244,8 +244,8 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			renderer.setColor(Color.ORANGE);
 
 			renderer.circle(op.x, op.y, radius, 32);
-		} else if (steering instanceof FollowPath) {
-			FollowPath fp = (FollowPath)steering;
+		} else if (steering instanceof CustomFollowPath) {
+			CustomFollowPath fp = (CustomFollowPath)steering;
 			Vector2 itp = (Vector2)fp.getInternalTargetPosition();
 			renderer.setColor(Color.RED);
 			renderer.circle(itp.x, itp.y, .2f, 16);
@@ -565,7 +565,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 			return;
 		}
 		LinePath<Vector2> linePath = new LinePath<Vector2>(dude.path.toV2Path(), true);
-		FollowPath<Vector2, LinePath.LinePathParam> followPath = new FollowPath<Vector2, LinePath.LinePathParam>(
+		CustomFollowPath<Vector2, LinePath.LinePathParam> followPath = new CustomFollowPath<Vector2, LinePath.LinePathParam>(
 			dude, linePath, .25f, .25f);
 		followPath
 			.setDecelerationRadius(.65f)
