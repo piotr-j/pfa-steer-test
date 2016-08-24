@@ -290,19 +290,12 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 				pos.mulAdd(vel, dt);
 				vel.mulAdd(acceleration.linear, dt).limit(maxLinearSpeed);
 
-				// Update orientation and angular velocity
-//				if (independentFacing) {
-//					setRotation(getRotation() + (angularVelocity * time) * MathUtils.radiansToDegrees);
-//					angularVelocity += steering.angular * time;
-//				} else {
-					// If we haven't got any velocity, then we can do nothing.
-//					if (!linearVelocity.isZero(getZeroLinearSpeedThreshold())) {
-//						float newOrientation = vectorToAngle(linearVelocity);
-//						angularVelocity = (newOrientation - getRotation() * MathUtils.degreesToRadians) * time; // this is superfluous if independentFacing is always true
-//						setRotation(newOrientation * MathUtils.radiansToDegrees);
-//					}
-//				}
-
+				// If we haven't got any velocity, then we can do nothing.
+				if (!vel.isZero(getZeroLinearSpeedThreshold())) {
+					float newOrientation = vectorToAngle(vel);
+					angVel = (newOrientation - orientation) * dt; // this is superfluous if independentFacing is always true
+					orientation = newOrientation;
+				}
 			}
 		}
 
@@ -562,9 +555,12 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 					CollisionAvoidance<Vector2> avoidance = new CollisionAvoidance<Vector2>(selected,
 						new RadiusProximity<Vector2>(selected, dudes, .8f));
 //					MyPrioritySteering<Vector2> steering = new MyPrioritySteering<Vector2>(selected, .0001f);
+					LookWhereYouAreGoing<Vector2> lookWhereYouAreGoing = new LookWhereYouAreGoing<Vector2>(selected);
+					lookWhereYouAreGoing.setAlignTolerance(0.1f);
 					MyBlendedSteering<Vector2> steering = new MyBlendedSteering<Vector2>(selected);
 					steering.add(avoidance, 4);
 					steering.add(followPath, 1);
+					steering.add(lookWhereYouAreGoing, 1);
 					selected.steering = steering;
 				}
 			} else {
