@@ -676,7 +676,7 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 						int y = fromNode.y + oy;
 						if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
 							int type = typeOf(x, y);
-							if (type == fromNode.type) {
+							if (type == fromNode.type || (type == DR && fromNode.type == __) || (type == __ && fromNode.type == DR)) {
 								if (Math.abs(ox) == Math.abs(oy)) {
 									if (typeOf(fromNode.x + ox, fromNode.y) == type && typeOf(fromNode.x, fromNode.y + oy) == type) {
 										fromNode.connections.add(new NodeConnection(fromNode, get(x, y)));
