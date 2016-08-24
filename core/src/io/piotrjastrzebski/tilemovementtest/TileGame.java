@@ -564,8 +564,9 @@ public class TileGame extends ApplicationAdapter implements InputProcessor {
 		if (dude.path.getCount() < 2) {
 			return;
 		}
-		LinePath<Vector2> linePath = new LinePath<Vector2>(dude.path.toV2Path(), true);
-		CustomFollowPath<Vector2, LinePath.LinePathParam> followPath = new CustomFollowPath<Vector2, LinePath.LinePathParam>(
+		// hpw dp we dp doors? custom path? could return point before door, until it is open i guess
+		CustomLinePath<Vector2> linePath = new CustomLinePath<Vector2>(dude.path.toV2Path(), true);
+		CustomFollowPath<Vector2, CustomLinePath.LinePathParam> followPath = new CustomFollowPath<Vector2, CustomLinePath.LinePathParam>(
 			dude, linePath, .25f, .25f);
 		followPath
 			.setDecelerationRadius(.65f)

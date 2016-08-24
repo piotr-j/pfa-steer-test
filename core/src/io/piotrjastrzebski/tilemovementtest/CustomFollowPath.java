@@ -10,7 +10,7 @@ import com.badlogic.gdx.math.Vector;
  * Created by PiotrJ on 24/08/16.
  */
 public class CustomFollowPath <T extends Vector<T>, P extends Path.PathParam> extends FollowPath<T, P> {
-	protected T internal;
+	protected T itp;
 	public CustomFollowPath (Steerable<T> owner, Path<T, P> path) {
 		super(owner, path);
 	}
@@ -21,10 +21,45 @@ public class CustomFollowPath <T extends Vector<T>, P extends Path.PathParam> ex
 
 	public CustomFollowPath (Steerable<T> owner, Path<T, P> path, float pathOffset, float predictionTime) {
 		super(owner, path, pathOffset, predictionTime);
-		internal = getInternalTargetPosition();
+		itp = getInternalTargetPosition();
 	}
 
 	@Override protected SteeringAcceleration<T> calculateRealSteering (SteeringAcceleration<T> steering) {
-		return super.calculateRealSteering(steering);
+		// Predictive or non-predictive behavior?
+		T location = (predictionTime == 0) ?
+			// Use the current position of the owner
+			owner.getPosition()
+			:
+			// Calculate the predicted future position of the owner. We're reusing steering.linear here.
+			steering.linear.set(owner.getPosition()).mulAdd(owner.getLinearVelocity(), predictionTime);
+
+		// Find the distance from the start of the path
+		float distance = path.calculateDistance(location, pathParam);
+
+		// Offset it
+		float targetDistance = distance + pathOffset;
+
+		// Calculate the target position
+		path.calculateTargetPosition(itp, pathParam, targetDistance);
+
+		if (arriveEnabled && path.isOpen()) {
+			if (pathOffset >= 0) {
+				// Use Arrive to approach the last point of the path
+				if (targetDistance > path.getLength() - decelerationRadius) return arrive(steering, itp);
+			} else {
+				// Use Arrive to approach the first point of the path
+				if (targetDistance < decelerationRadius) return arrive(steering, itp);
+			}
+		}
+
+		// Seek the target position
+		steering.linear.set(itp).sub(owner.getPosition()).nor()
+			.scl(getActualLimiter().getMaxLinearAcceleration());
+
+		// No angular acceleration
+		steering.angular = 0;
+
+		// Output steering acceleration
+		return steering;
 	}
 }
